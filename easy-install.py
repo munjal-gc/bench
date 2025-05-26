@@ -84,6 +84,7 @@ def write_to_env(
     http_port: str = None,
     custom_image: str = None,
     custom_tag: str = None,
+    architecture: str = "linux/amd64",
 ) -> None:
     quoted_sites = ",".join([f"`{site}`" for site in sites]).strip(",")
     example_env = get_from_env(frappe_docker_dir, "example.env")
@@ -102,6 +103,7 @@ def write_to_env(
         f"SITES={quoted_sites}\n",
         "PULL_POLICY=missing\n",
         f'BACKUP_CRONSTRING="{cronstring}"\n',
+        f"ARCHITECTURE={architecture}\n",
     ]
 
     if http_port:
@@ -145,6 +147,7 @@ def start_prod(
     image: str = None,
     is_https: bool = True,
     http_port: str = None,
+    architecture: str = "linux/amd64",
 ):
     if not check_repo_exists():
         clone_frappe_docker_repo()
@@ -194,6 +197,7 @@ def start_prod(
                 http_port=http_port if not is_https and http_port else None,
                 custom_image=custom_image,
                 custom_tag=custom_tag,
+                architecture=architecture,
             )
             cprint(
                 "\nA .env file is generated with basic configs. Please edit it to fit to your needs \n",
@@ -226,6 +230,7 @@ def start_prod(
                 http_port=http_port if not is_https and http_port else None,
                 custom_image=custom_image,
                 custom_tag=custom_tag,
+                architecture=architecture,
             )
 
         try:
@@ -303,6 +308,7 @@ def setup_prod(
     apps: List[str] = [],
     is_https: bool = False,
     http_port: str = None,
+    architecture: str = "linux/amd64",
 ) -> None:
     if len(sites) == 0:
         sites = ["site1.localhost"]
@@ -316,6 +322,7 @@ def setup_prod(
         image=image,
         is_https=is_https,
         http_port=http_port,
+        architecture=architecture,
     )
 
     for sitename in sites:
@@ -343,6 +350,7 @@ def update_prod(
     cronstring: str = None,
     is_https: bool = False,
     http_port: str = None,
+    architecture: str = "linux/amd64",
 ) -> None:
     start_prod(
         project=project,
@@ -351,6 +359,7 @@ def update_prod(
         cronstring=cronstring,
         is_https=is_https,
         http_port=http_port,
+        architecture=architecture,
     )
     migrate_site(project=project)
 
@@ -538,11 +547,10 @@ def add_project_option(parser: argparse.ArgumentParser):
 def add_setup_options(parser: argparse.ArgumentParser):
     parser.add_argument(
         "-a",
-        "--app",
-        dest="apps",
-        default=[],
-        help="list of app(s) to be installed",
-        action="append",
+        "--arch",
+        default="linux/amd64",
+        help="Architecture of docker Image",
+        dest="architecture",
     )
     parser.add_argument(
         "-s",
@@ -577,6 +585,12 @@ def add_common_parser(parser: argparse.ArgumentParser):
     )
     parser.add_argument(
         "-l",
+        "--force-pull",
+        action="store_true",
+        help="Force pull frappe_docker",
+    )
+    parser.add_argument(
+        "-a",
         "--force-pull",
         action="store_true",
         help="Force pull frappe_docker",
@@ -801,6 +815,7 @@ if __name__ == "__main__":
                 apps=args.apps,
                 is_https=not args.no_ssl,
                 http_port=args.http_port,
+                architecture=args.architecture,
             )
         elif args.upgrade:
             update_prod(
@@ -810,6 +825,7 @@ if __name__ == "__main__":
                 cronstring=args.backup_schedule,
                 is_https=not args.no_ssl,
                 http_port=args.http_port,
+                architecture=args.architecture,
             )
 
     elif args.subcommand == "deploy":
@@ -828,6 +844,8 @@ if __name__ == "__main__":
             apps=args.apps,
             is_https=not args.no_ssl,
             http_port=args.http_port,
+            architecture=args.architecture,
+            
         )
     elif args.subcommand == "develop":
         cprint("\nSetting Up Development Instance\n", level=2)
