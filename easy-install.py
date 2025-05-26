@@ -43,10 +43,10 @@ def cprint(*args, level: int = 1):
         print(CYLW, message, reset)
 
 
-def clone_frappe_docker_repo() -> None:
+def clone_frappe_docker_repo(frappe_docker_url) -> None:
     try:
         urllib.request.urlretrieve(
-            "https://github.com/frappe/frappe_docker/archive/refs/heads/main.zip",
+            frappe_docker_url,
             "frappe_docker.zip",
         )
         logging.info("Downloaded frappe_docker zip file from GitHub")
@@ -148,9 +148,10 @@ def start_prod(
     is_https: bool = True,
     http_port: str = None,
     architecture: str = "linux/amd64",
+    frappe_docker_url: str = "https://github.com/frappe/frappe_docker/archive/refs/heads/main.zip",
 ):
     if not check_repo_exists():
-        clone_frappe_docker_repo()
+        clone_frappe_docker_repo(frappe_docker_url)
     install_container_runtime()
 
     compose_file_name = os.path.join(
@@ -309,6 +310,7 @@ def setup_prod(
     is_https: bool = False,
     http_port: str = None,
     architecture: str = "linux/amd64",
+    frappe_docker_url: str = "https://github.com/frappe/frappe_docker/archive/refs/heads/main.zip",
 ) -> None:
     if len(sites) == 0:
         sites = ["site1.localhost"]
@@ -323,6 +325,7 @@ def setup_prod(
         is_https=is_https,
         http_port=http_port,
         architecture=architecture,
+        frappe_docker_url=frappe_docker_url,
     )
 
     for sitename in sites:
@@ -351,6 +354,7 @@ def update_prod(
     is_https: bool = False,
     http_port: str = None,
     architecture: str = "linux/amd64",
+    frappe_docker_url: str = "https://github.com/frappe/frappe_docker/archive/refs/heads/main.zip",
 ) -> None:
     start_prod(
         project=project,
@@ -360,13 +364,16 @@ def update_prod(
         is_https=is_https,
         http_port=http_port,
         architecture=architecture,
+        frappe_docker_url=frappe_docker_url
     )
     migrate_site(project=project)
 
 
-def setup_dev_instance(project: str):
+def setup_dev_instance(project: str,
+    frappe_docker_url: str = "https://github.com/frappe/frappe_docker/archive/refs/heads/main.zip",
+):
     if not check_repo_exists():
-        clone_frappe_docker_repo()
+        clone_frappe_docker_repo(frappe_docker_url=frappe_docker_url)
     install_container_runtime()
 
     try:
@@ -546,11 +553,19 @@ def add_project_option(parser: argparse.ArgumentParser):
 
 def add_setup_options(parser: argparse.ArgumentParser):
     parser.add_argument(
-        "-a",
-        "--arch",
+        "-o",
+        "--os_arch",
         default="linux/amd64",
-        help="Architecture of docker Image",
+        help="OS/Architecture of docker Image default linux/amd64",
         dest="architecture",
+    )
+    parser.add_argument(
+        "-a",
+        "--app",
+        dest="apps",
+        default=[],
+        help="list of app(s) to be installed",
+        action="append",
     )
     parser.add_argument(
         "-s",
@@ -590,10 +605,10 @@ def add_common_parser(parser: argparse.ArgumentParser):
         help="Force pull frappe_docker",
     )
     parser.add_argument(
-        "-a",
-        "--force-pull",
-        action="store_true",
-        help="Force pull frappe_docker",
+        "--frappe_docker_repo_url",
+        help="Frappe Docker repository URL default to https://github.com/frappe/frappe_docker/archive/refs/heads/main.zip",
+        default="https://github.com/frappe/frappe_docker/archive/refs/heads/main.zip",
+        dest="frappe_docker_url",
     )
     return parser
 
@@ -697,9 +712,10 @@ def build_image(
     tags: List[str],
     python_version: str,
     node_version: str,
+    frappe_docker_url: str = "https://github.com/frappe/frappe_docker/archive/refs/heads/main.zip",
 ):
     if not check_repo_exists():
-        clone_frappe_docker_repo()
+        clone_frappe_docker_repo(frappe_docker_url=frappe_docker_url)
     install_container_runtime()
 
     if not tags:
@@ -803,6 +819,7 @@ if __name__ == "__main__":
             containerfile_path=args.containerfile,
             python_version=args.python_version,
             node_version=args.node_version,
+            frappe_docker_url=args.frappe_docker_url,
         )
         if args.deploy:
             setup_prod(
@@ -816,6 +833,7 @@ if __name__ == "__main__":
                 is_https=not args.no_ssl,
                 http_port=args.http_port,
                 architecture=args.architecture,
+                frappe_docker_url=args.frappe_docker_url,
             )
         elif args.upgrade:
             update_prod(
@@ -826,6 +844,7 @@ if __name__ == "__main__":
                 is_https=not args.no_ssl,
                 http_port=args.http_port,
                 architecture=args.architecture,
+                frappe_docker_url=args.frappe_docker_url,
             )
 
     elif args.subcommand == "deploy":
@@ -845,12 +864,14 @@ if __name__ == "__main__":
             is_https=not args.no_ssl,
             http_port=args.http_port,
             architecture=args.architecture,
-            
+            frappe_docker_url=args.frappe_docker_url,
         )
     elif args.subcommand == "develop":
         cprint("\nSetting Up Development Instance\n", level=2)
         logging.info("Running Development Setup")
-        setup_dev_instance(args.project)
+        setup_dev_instance(
+            args.project,
+            frappe_docker_url=args.frappe_docker_url,)
     elif args.subcommand == "upgrade":
         cprint("\nUpgrading Production Instance\n", level=2)
         logging.info("Upgrading Development Setup")
@@ -861,6 +882,7 @@ if __name__ == "__main__":
             is_https=not args.no_ssl,
             cronstring=args.backup_schedule,
             http_port=args.http_port,
+            frappe_docker_url=args.frappe_docker_url,
         )
     elif args.subcommand == "exec":
         cprint(f"\nExec into {args.project} backend\n", level=2)
