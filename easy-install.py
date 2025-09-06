@@ -314,6 +314,12 @@ def setup_prod(
 ) -> None:
     if len(sites) == 0:
         sites = ["site1.localhost"]
+    else:
+        cprint(
+            f"sites list :  {sites}",
+            level=2,
+        )
+    
 
     db_pass, admin_pass = start_prod(
         project=project,
@@ -535,7 +541,7 @@ def exec_command(project: str, command: List[str] = [], interactive_terminal=Fal
             exec_command,
             check=True,
         )
-        logging.info("New site creation completed")
+        logging.info("Command execution completed")
     except Exception as e:
         logging.error(f"Exec command failed for {project}", exc_info=True)
         cprint(f"Exec command failed for {project}\n", e)
